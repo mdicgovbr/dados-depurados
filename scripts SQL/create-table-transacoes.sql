@@ -4,14 +4,13 @@
 
 CREATE TABLE public.transacoes
 (
-  id integer NOT NULL,
+  id serial primary key,
   "Valor" double precision,
   "siglaUF" character varying,
   "NBS" character varying,
   "Ano" integer,
   "Modo" character varying,
   "idPais" integer,
-  CONSTRAINT transacoes_pkey PRIMARY KEY (id),
   CONSTRAINT "transacoes_idPais_fkey" FOREIGN KEY ("idPais")
       REFERENCES public.pais ("ID") MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
