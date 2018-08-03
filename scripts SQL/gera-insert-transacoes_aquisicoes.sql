@@ -1,9 +1,11 @@
 Select 
     'INSERT INTO TRANSACOES (valor, siglaUF, idPais, nome_pais, nbs, ano, modo) VALUES (''' ||
-    valor || ''',''' ||
+    --to_char(valor, '999G999D00',' NLS_NUMERIC_CHARACTERS = '',.''') || ''',''' ||
+    REPLACE(valor, ',','.') || ''',''' ||
+    --valor || ''',''' ||
     uf_origem || ''',''' ||
     codigo_país || ''',''' ||
-    NBS || ''', ''2017'', ''aquisicao'')'
+    NBS || ''', ''2017'', ''aquisicao'')' AS TRANSACAO
 
 FROM(
     select 
