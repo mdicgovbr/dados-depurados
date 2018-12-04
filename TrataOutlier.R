@@ -57,10 +57,3 @@ empresas_aquisicao <- empresas_aquisicao %>%
 
 provaveis_outliers <- empresas_aquisicao %>%
                         filter(avalia == TRUE ,maior_0.10 == TRUE)
-
-# Importar relatorios investigativos
-
-# gerar Dashboard investigativo
-
-# selecionar dados CONFIRMADOS como outliers
-  
