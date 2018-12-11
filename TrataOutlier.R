@@ -31,21 +31,16 @@
   # VALOR_TOTAL_NBS (valor em nbs_aquisicao)
   # VALOR_DIARIO_MEDIO_NBS (valor em nbs_aquisicao)
   # DESVIO_PADRAO_NBS (valor em nbs_aquisicao)
-    
-  # PARTICIPACAO (valor_total_empresa / valor_total_nbs)
-  # > 0,10 (part > 0.1 and vlr_tot_nbs > 1000000)
-  # AVALIA (part > 0.9,if(is.na(z_norm) = 0 | z_norm = z_norm)Z_norm > 2)
-  # NORMALIZACAO (Z_EMPRESA - valor_diario_medio_nbs - valor_diario_medio_emp / desv_pdr_nbs)
-  
+
 empresas_aquisicao <- nbs_aquisicao %>%
                       select(-desc_nbs)%>%
                       right_join(emp_aq,by = "cd_nbs")
 rm(emp_aq)
-
-# z_norm = (vlr_dia_med_nbs - vlr_dia_med_emp)/desv_pdr_nbs,
-# part =vlr_tot_emp/vlr_tot_nbs,
-# maior_0.10 = if_else(part > 0.1 & vlr_tot_nbs > 1000000,TRUE,FALSE),
-# avalia = if_else(part > 0.9 | z_norm > 2, TRUE,FALSE)
+    
+  # z_norm = (vlr_dia_med_emp - vlr_dia_med_nbs)/desv_pdr_nbs,  
+  # part =vlr_tot_emp/vlr_tot_nbs,
+  # maior_0.10 = if_else(part > 0.1 & vlr_tot_nbs > 1000000,TRUE,FALSE),
+  # avalia = if_else(part > 0.9 | z_norm > 2, TRUE,FALSE)
 
 empresas_aquisicao <- empresas_aquisicao %>%
               mutate(z_norm = (vlr_dia_med_emp - vlr_dia_med_nbs)/desv_pdr_nbs,
