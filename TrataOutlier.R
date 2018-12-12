@@ -58,4 +58,4 @@ provaveis_outliers <- empresas_aquisicao %>%
 # gerar Dashboard investigativo
 
 # selecionar dados CONFIRMADOS como outliers
-  
+
