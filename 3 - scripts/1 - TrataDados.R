@@ -8,55 +8,61 @@ library(stringr)
 
 # MELHORIA: recriar codigo de leitura de arquivos com um laco for
 
-  operacoes <- read.csv('dados/operacoes.csv',stringsAsFactors = FALSE,sep = ';',header = TRUE)
+  operacoes <- read_delim('2 - dados/operacoes.csv',delim = ';',col_names = TRUE)
 
-  rvs <- read.csv('rvs.csv',stringsAsFactors = FALSE,sep = ';',header = TRUE)
+  rvs <- read_delim('2 - dados/rvs.csv',delim = ';',col_names = TRUE)
 
-  item_fat <- read.csv('dados/item_fat.csv', sep = ';',header = TRUE,stringsAsFactors = FALSE)
+  item_fat <- read_delim('2 - dados/item_fat.csv',delim = ';',col_names = TRUE)
 
-  fatura <- read.csv('dados/faturas.csv',sep = ';',header = TRUE,stringsAsFactors = FALSE)
+  fatura <- read_delim('2 - dados/faturas.csv',delim = ';',col_names = TRUE)
 
-  vendedores <- read.csv('dados/vendedores.csv',sep = ';', header = TRUE,stringsAsFactors = FALSE)
+  vendedores <- read_delim('2 - dados/vendedores.csv',delim = ';',col_names = TRUE)
 
-  serv_enq_vd <- read.csv('dados/serv_enq_vd.csv',sep = ';', header = TRUE,stringsAsFactors = FALSE)
+  serv_enq_vd <- read_delim('2 - dados/serv_enq_vd.csv',delim = ';',col_names = TRUE)
 
-  taxa_venda <- read.csv('dados/taxa_venda.csv',sep = ';',header = TRUE,stringsAsFactors = FALSE)
+  taxa_venda <- read_delim('2 - dados/taxa_venda.csv',delim = ';',col_names = TRUE)
 
 # tabelas apoio
   
-  paises <- read.csv('dados/paises.csv',header = TRUE,sep = ',',stringsAsFactors = FALSE)
+  paises <- as.data.frame(read_delim('2 - dados/paises.csv',delim = ',',col_names = TRUE))
+  
+    paises$CODIGO <- gsub("(?<![0-9])0+", "", paises$CODIGO, perl = TRUE)
+  
+  moeda <- as.data.frame(read_delim('2 - dados/moedas.csv',delim = ',',col_names = TRUE,locale = locale(encoding = "latin1"),quote = ''))
+  
+    moeda$CODIGO <- gsub('"','',moeda$CODIGO)
+    
+    moeda$CODIGO <- gsub("(?<![0-9])0+", "", moeda$CODIGO, perl = TRUE)
 
-  moeda <- read.csv('dados/moedas.csv',header = TRUE,sep = ',',stringsAsFactors = FALSE)
-
-  nbs <- read.table('dados/nbs.csv',header = TRUE,sep = ',',stringsAsFactors = FALSE)
+  nbs <- as.data.frame(read_delim('2 - dados/nbs.csv',delim = ',',col_names = TRUE))
 
 ##################### ############################ ##########################################
 
 # Tratamento do arquivo taxa_venda
+  
+  taxa_venda <- read_delim('2 - dados/taxa_venda.csv',delim = ';',col_names = TRUE)
 
   taxa_venda <- taxa_venda[1:3]
 
   taxa_venda <- taxa_venda[seq(dim(taxa_venda)[1],1),]
 
   taxa_venda <- unique(taxa_venda[c('DATA_TAXA','MOEDA','TAXA')])
-
+  
   taxa <- paste(taxa_venda$DATA_TAXA,taxa_venda$MOEDA)
-
-  taxa <- cbind(taxa,taxa_venda$TAXA)
-
-  colnames(taxa)[2] <- 'taxa'
-
+  
   taxa <- as.data.frame(taxa)
-
-# ambos os data frames está de "cabeca para baixo"
-# for para ler cada linha do arquivo
-# verificar se o par (dt_md é único) e inserir em uma váriavel
-# excluir os valores seguintes que tenham o par(dt_md) já inseridos na váriavel acima
-
-  datas <- unique(taxa$dt_md)
-
-  valores <- ifelse(datas$datas %in% taxa$dt_md,taxa$taxa)
-
+  
+  colnames(taxa)[1] <- 'dt_md'
+  colnames(taxa)[2] <- 'taxa'
+  
+  unicos <- unique(taxa)
+  
+  taxa <- cbind(taxa,taxa_venda$TAXA)
+  
+  unicos <- unicos[unicos$dt_md %in% names(which(table(c(taxa$dt_md)) == 1)),]
+  
+  unicos <- ifelse(unicos[unicos$dt_md %in% names(which(table(c(taxa$dt_md)) == 1)),],taxa$taxa)
+  
 ##################### ################################ ######################################
 
 # Reescrita dos codigos SQL para codigo R
@@ -88,7 +94,7 @@ library(stringr)
 # Passo 3 - Marca moedas inexistentes
 
   rvs <-  rvs %>%
-    mutate(MOEDA_INEXISTENTE = ifelse(!(rvs$moeda %in% moeda$CODIGO),1,0))
+    mutate(MOEDA_INEXISTENTE = ifelse(!(rvs$MOEDA %in% moeda$CODIGO),1,0))
 
 # Passo 4 - Marca paises inexistentes
 
