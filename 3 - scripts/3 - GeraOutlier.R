@@ -1,6 +1,6 @@
-# Estatisticas do Comercio Exterior de Servicos
+# IDENFITICACAO DOS POSSIVEIS OUTLIERS
 
-# Importar bibliotecas
+# Carregamento das bibliotecas necessarias
 
   library(tidyverse)
   library(magrittr)
@@ -36,12 +36,12 @@
   # maior_0.10 = if_else(part > 0.1 & vlr_tot_nbs > 1000000,TRUE,FALSE),
   # avalia = if_else(part > 0.9 | z_norm > 2, TRUE,FALSE)
 
-empresas_aquisicao <- nbs_aquisicao %>%
+  empresas_aquisicao <- nbs_aquisicao %>%
                       select(-desc_nbs)%>%
                       right_join(emp_aq,by = "cd_nbs")
-rm(emp_aq)
+  rm(emp_aq)
 
-empresas_aquisicao <- empresas_aquisicao %>%
+  empresas_aquisicao <- empresas_aquisicao %>%
               mutate(z_norm = (vlr_dia_med_emp - vlr_dia_med_nbs)/desv_pdr_nbs,
                 part =vlr_tot_emp/vlr_tot_nbs,
                 maior_0.10 = if_else(part > 0.1 & vlr_tot_nbs > 1000000,TRUE,FALSE),
@@ -49,7 +49,7 @@ empresas_aquisicao <- empresas_aquisicao %>%
 
 # selecionar outliers
 
-provaveis_outliers <- empresas_aquisicao %>%
+  provaveis_outliers <- empresas_aquisicao %>%
                         filter(avalia == TRUE ,maior_0.10 == TRUE)
 
 

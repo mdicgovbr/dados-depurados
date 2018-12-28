@@ -1,3 +1,5 @@
+# GERA PANILHA FORMATADA PARA DIVULGACAO DOS DADOS
+
 # Carregamento das bibliotecas necessarias para execução do código
 
   library(tidyverse)

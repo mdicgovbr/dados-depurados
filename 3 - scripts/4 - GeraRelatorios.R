@@ -13,7 +13,7 @@
 
 # subitem_empresa_pais
 
-pais <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/subitem_empresa_pais/por_paises.csv',fileEncoding = 'UTF16LE',skip = 4,
+  pais <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/subitem_empresa_pais/por_paises.csv',fileEncoding = 'UTF16LE',skip = 4,
                                    sep = ',',col.names = c('cd_nbs','desc_nbs','emp','cnpj','pais','valor'),colClasses ="character")
 
   pais$valor <- gsub("\\.",'',pais$valor)
@@ -27,7 +27,7 @@ pais <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/s
 
 # empresa_operacoes_faturamento
 
-oper <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/empresa_operacoes_faturamento/operacoes.csv',fileEncoding = 'UTF16LE',skip = 3,
+  oper <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/empresa_operacoes_faturamento/operacoes.csv',fileEncoding = 'UTF16LE',skip = 3,
                                    sep = ',',col.names = c('cd_nbs','desc_nbs','cnpj','emp','oper','oper_dia_ini','oper_dia_fin','vlr_oper','vlr_fat'),colClasses = "character")
 
   oper$vlr_oper <- gsub("\\.",'',oper$vlr_oper)
@@ -47,7 +47,7 @@ oper <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/e
 
 # subitem_todas_empresas_por_ano_operacoes
 
-emp_por_ano <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/subitem_todas_empresas_por_ano_operacoes/empresas_por_ano.csv',fileEncoding = 'UTF16LE',skip = 5,
+  emp_por_ano <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/subitem_todas_empresas_por_ano_operacoes/empresas_por_ano.csv',fileEncoding = 'UTF16LE',skip = 5,
                                    sep = ',',col.names = c('cd_nbs','desc_nbs','cnpj','emp','vlr_2014','vlr_2015','vlr_2016'),colClasses = "character")
 
   emp_por_ano$vlr_2014 <- gsub("\\.",'',emp_por_ano$vlr_2014)
@@ -102,13 +102,8 @@ emp_por_ano <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estati
 
 # Apresenta dados em formato de tabela
 
-datatable(emp_por_ano,rownames = FALSE, editable = TRUE,filter = 'top',options = list(pageLength = 10, autoWidth = FALSE))
+  datatable(emp_por_ano,rownames = FALSE, editable = TRUE,filter = 'top',options = list(pageLength = 10, autoWidth = FALSE))
 
-datatable(oper,rownames = FALSE, editable = TRUE,filter = 'top',options = list(pageLength = 10, autoWidth = FALSE))
+  datatable(oper,rownames = FALSE, editable = TRUE,filter = 'top',options = list(pageLength = 10, autoWidth = FALSE))
 
-datatable(pais,rownames = FALSE, editable = TRUE,filter = 'top',options = list(pageLength = 10, autoWidth = FALSE))
-
-
-
-
-
+  datatable(pais,rownames = FALSE, editable = TRUE,filter = 'top',options = list(pageLength = 10, autoWidth = FALSE))
