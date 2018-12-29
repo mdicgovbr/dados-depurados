@@ -14,6 +14,13 @@
   # GROUP BY DADOSOPERACOES.CODIGONBS, NBSV1_1_07CODIGOSCLASSIFICACAO.CODIGODESCRICAO
   # ORDER BY VALOR DESC;
 
+NBS <- operacoes %>% 
+  select(operacoes$codigonbs, nbs$codigodescricao,sum(operacoes$valor_operacao_usd)) %>% 
+  nbs %>% operacoes$codigonbs %in% nbs$codigo %>% 
+  which(operacoes$datainicioservico < as.Date('2019-01-01', 'YYYY-MM-DD') & operacoes$dataconclusaoservico > as.Date('2017-12-31', 'YYYY-MM-DD')) %>% 
+  group_by(operacoes$codigonbs,nbs$codigodescricao) %>% 
+  sort(operacoes$valoroperacao,desc)
+
 # Gera aba -> EMPRESA (PASSO 2)
 
   # SELECT
@@ -41,3 +48,8 @@
   # DADOSRVS.IDENTIFICACAOVENDEDOR,
   # DADOSVENDEDORES.IDENTIFICACAONOME
   # ORDER BY VALOR DESC;
+
+  EMPRESAS <- operacoes %>% paste(operacoes$codigonbs,rvs$identificacaovendedor,operacoes$codigonbs,'-')
+
+
+

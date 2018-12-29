@@ -1,8 +1,9 @@
 # Carregamento das bibliotecas necessarias
 
-library(tidyverse)
-library(magrittr)
-library(stringr)
+  library(tidyverse)
+  library(magrittr)
+  library(stringr)
+  library(statnet.common)
 
 # Importacao dos arquivos para depuracao
 
@@ -112,28 +113,46 @@ library(stringr)
   #             AND nvl(RVS.VENDEDOR_INEXISTENTE,0) = 0
   #             AND RVS.ID_RVS = OPER.ID_RVS);
 
-  if(rvs$ID_RVS == operacoes$ID_RVS){
-    rvs <- rvs %>%  case_when(is.null(rvs$MOEDA_INEXISTENTE) ~ 0,
-                                       is.null(rvs$PAIS_INEXISTENTE) ~ 0,
-                                       is.null(rvs$VENDEDOR_INEXISTENTE)~ 0)
-  }
-
   operacoes <- operacoes %>% 
-                mutate(RVS_INEXISTENTE = ifelse(,1,0))
+                mutate(RVS_INEXISTENTE = ifelse(
+                  0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
+                         rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
+                                                   NVL(rvs$PAIS_INEXISTENTE,0) == 0,
+                                                   NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
+                         )
+                  ))
+                  ,1,0))
 
-# Passo 6 - Copia, atualiza e marca NBS inexistentes NBS
+# Passo 6 - Copia, atualiza e marca NBS inexistentes NBS (IMPORTAR TABELA DE MAPEAMENTOS NBS)
 
   # UPDATE /*+ parallel(OPER,8) */ SISCOSERVV.IMPORTACAOOPERACOES OPER
   # SET OPER.NBS_ATUALIZADA = ( SELECT MAP.CODIGOCLASSIFICACAO_V1_1
   #                             FROM SISCOSERVV.MAPEAMENTONBSV1_0_V1_1 MAP
   #                             WHERE OPER.NBS_ATUALIZADA = MAP.CODIGOCLASSIFICACAO_V1_0)
-  # WHERE OPER.NBS_ATUALIZADA NOT IN (select NBSV1_1_07CODIGOSCLASSIFICACAO.CODIGO from SISCOSERVV.NBSV1_1_07CODIGOSCLASSIFICACAO);
-
+  #                             WHERE OPER.NBS_ATUALIZADA NOT IN (select NBSV1_1_07CODIGOSCLASSIFICACAO.CODIGO from SISCOSERVV.NBSV1_1_07CODIGOSCLASSIFICACAO);
+  
+    operacoes <- operacoes %>% 
+      mutate(NBS_ATUALIZADA = ifelse(
+        0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
+                     rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
+                                               NVL(rvs$PAIS_INEXISTENTE,0) == 0,
+                                               NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
+                     )
+        ))
+        ,1,0))
+    
+    
+    mapa <- mapa %>% (if(operacoes$nbs_atualizada %in% mapa$codigo) 
+      which(operacoes$NBS_ATUALIZADA %!in$ (nbs$codigo)))
+    
   # UPDATE /*+ parallel(OPER,8) */ siscoservv.IMPORTACAOOPERACOES Oper
   # SET NBS_INEXISTENTE = 1
   # WHERE not exists (SELECT 1
   #                   FROM siscoservv.NBSV1_1_07CODIGOSCLASSIFICACAO N
   #                   WHERE N.CODIGO =  Oper.NBS_ATUALIZADA);
+  
+  operacoes <- operacoes %>% mutate(NBS_INEXISTENTE = ifelse(
+      0 == (ifelse(operacoes$nbs_atualizada %in% nbs$codigo)),1,0))
 
 
 # Passo 7 - Marca paises inexistentes
@@ -144,14 +163,27 @@ library(stringr)
   #                   FROM siscoservv.PAISES
   #                   WHERE PAISES.CODIGO = Oper.CD_PAIS_DESTINO);
   
+  operacoes <-  operacoes %>%
+    mutate(PAIS_INEXISTENTE = ifelse(!(operacoes$CD_PAIS_DESTINO %in% paises$CODIGO),1,0))
+  
 # Passo 8 - Calcula duracao e valor diario medio: Operacoes
 
   # UPDATE /*+ parallel(OPER,8) */ siscoservv.IMPORTACAOOPERACOES OPER
   # SET DURACAO = DATA_CONCLUSAO_OPERACAO - DATA_INICIO_OPERACAO + 1;
-  # 
+
+  operacoes <- operacoes %>% mutate(duracao = DATA_CONCLUSAO_OPERACAO - DATA_INICIO_OPERACAO + 1)
+  
+  
   # UPDATE /*+ parallel(OPER,8) */ siscoservv.IMPORTACAOOPERACOES
   # SET VALOR_DIARIO = VALOR_OPERACAO / DURACAO,
   # VALOR_DIARIO_DOLAR = VALOR_OPERACAO_DOLAR / DURACAO;
+  
+  operacoes <- operacoces %>% mutate(
+    
+    valor_diario = valor_operacao / duracao,
+    valor_diario_dolar = valor_operacao_dolar / duracao
+    
+  )
 
 # Passo 9 - Marca operacoes inexistentes
 
@@ -163,14 +195,27 @@ library(stringr)
   #                  AND nvl(Oper.NBS_INEXISTENTE,0) = 0 --FALSE
   #                  AND nvl(Oper.PAIS_INEXISTENTE,0) = 0 --FALSE
   #                  AND Enq.ID_OPERACAO = Oper.ID_OPERACAO);
+  
+  serv_enq_vd <- operacoes %>% 
+    mutate(RVS_INEXISTENTE = ifelse(
+      0 == (ifelse(serv_enq_vd$ID_OPERACAO %in% operacoes$ID_OPERACAO,
+                   operacoes <- operacoes %>%  case_when(NVL(operacoes$MOEDA_INEXISTENTE,0) == 0,
+                                             NVL(operacoes$PAIS_INEXISTENTE,0) == 0,
+                                             NVL(operacoes$VENDEDOR_INEXISTENTE,0) == 0
+                   )
+      ))
+      ,1,0))
 
-# Passo 10 - Marca enquadramento inexistentes
+# Passo 10 - Marca enquadramento inexistentes (IMPORTAR TABELA DE ENQUADRAMENTO)
 
   # UPDATE /*+ parallel(IMP,4) */ siscoservv.IMPORTACAOENQUADRAMENTOS IMP
   # SET ENQUADRAMENTO_INEXISTENTE = 1
   # WHERE not exists (SELECT 1
   #                   FROM siscoservv.ENQUADRAMENTOS ENQ
   #                   WHERE IMP.CD_ENQUADRAMENTO = ENQ.CODIGO);
+  
+  serv_enq_vd <- serv_enq_vd %>% 
+    mutate(enq_inexistente = ifelse(!(serv_enq_vd$cd_enquadramento %in% enq$codigo),1,0))
 
 # Passo 11 - Marca RVS inexistente
 
@@ -182,6 +227,16 @@ library(stringr)
   #                   AND nvl(RVS.PAIS_INEXISTENTE,0) = 0
   #                   AND nvl(RVS.VENDEDOR_INEXISTENTE,0) = 0
   #                   AND RVS.ID_RVS = RF.ID_RVS);
+  
+  fatura <- fatura %>% 
+    mutate(RVS_INEXISTENTE = ifelse(
+      0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
+                   rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
+                                             NVL(rvs$PAIS_INEXISTENTE,0) == 0,
+                                             NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
+                   )
+      ))
+      ,1,0))
 
 # Passo 12 - Marca RF inexistente
 
@@ -191,6 +246,14 @@ library(stringr)
   #                   FROM siscoservv.IMPORTACAORF RF
   #                   WHERE nvl(RF.RVS_INEXISTENTE,0) = 0
   #                   AND RF.ID_RF = FAT.ID_RF);
+  
+  item_fat <- item_fat %>% 
+    mutate(RF_INEXISTENTE = ifelse(
+      0 == (ifelse(fatura$ID_RF %in% item_fat$ID_RF,
+                   fatura <- fatura %>%  case_when(NVL(fatura$RVS_INEXISTENTE,0) == 0
+                   )
+      ))
+      ,1,0))
 
 # Passo 13 - Marca operacoes inexistentes
 
@@ -202,6 +265,16 @@ library(stringr)
   #                  AND nvl(Oper.NBS_INEXISTENTE,0) = 0
   #                  AND nvl(Oper.PAIS_INEXISTENTE,0) = 0
   #                  AND FAT.ID_OPERACAO = Oper.ID_OPERACAO);
+  
+  item_fat <- item_fat %>% 
+    mutate(OPERACAO_INEXISTENTE = ifelse(
+      0 == sum(ifelse(item_fat$id_operacao %in% operacoes$id_operacao,
+                   operacoes <- operacoes %>%  case_when(NVL(operacoes$NBS_INEXISTENTE,0) == 0,
+                                             NVL(operacoes$RVS_INEXISTENTE,0) == 0,
+                                             NVL(operacoes$PAIS_INEXISTENTE,0) == 0
+                   )
+      ))
+      ,1,0))
 
 # Passo 14 - Calcula Valor Pago em USD - Itens de FATURAMENTO
 
@@ -209,6 +282,16 @@ library(stringr)
   # SET VALOR_FATURADO_DOLAR = VALOR_FATURADO * (select VALOR_OPERACAO_DOLAR/VALOR_OPERACAO
   #                                              from  siscoservv.IMPORTACAOOPERACOES OPER
   #                                              where FAT.ID_OPERACAO = Oper.ID_OPERACAO);
+  
+  operacoes <- operacoes %>% 
+    mutate(RVS_INEXISTENTE = ifelse(
+      0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
+                   rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
+                                             NVL(rvs$PAIS_INEXISTENTE,0) == 0,
+                                             NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
+                   )
+      ))
+      ,1,0))
 
 # Passo 15 - Transfere dados
 
