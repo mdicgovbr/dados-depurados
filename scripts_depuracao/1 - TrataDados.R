@@ -4,18 +4,19 @@
   library(magrittr)
   library(stringr)
   library(statnet.common)
+  library(lubridate)
 
 # Importacao dos arquivos para depuracao
 
 # MELHORIA: recriar codigo de leitura de arquivos com um laco for
 
-  operacoes <- read_delim('2 - dados/operacoes.csv',delim = ';',col_names = TRUE)
+  operacoes <- read_delim('2 - dados/operacoes.csv',delim = ';',col_names = TRUE,n_max = 1000000)
 
-  rvs <- read_delim('2 - dados/rvs.csv',delim = ';',col_names = TRUE)
+  rvs <- read_delim('2 - dados/rvs.csv',delim = ';',col_names = TRUE,n_max = 1000000)
 
-  item_fat <- read_delim('2 - dados/item_fat.csv',delim = ';',col_names = TRUE)
+  item_fat <- read_delim('2 - dados/item_fat.csv',delim = ';',col_names = TRUE,n_max = 1000000)
 
-  fatura <- read_delim('2 - dados/faturas.csv',delim = ';',col_names = TRUE)
+  fatura <- read_delim('2 - dados/faturas.csv',delim = ';',col_names = TRUE,n_max = 1000000)
 
   vendedores <- read_delim('2 - dados/vendedores.csv',delim = ';',col_names = TRUE)
 
@@ -39,30 +40,21 @@
 
 ##################### ############################ ##########################################
 
-# Tratamento do arquivo taxa_venda
+# Tratamento do arquivo taxa_venda (USAR GROUP_BY, SUMMARISE AND FIRST)
   
-  taxa_venda <- read_delim('2 - dados/taxa_venda.csv',delim = ';',col_names = TRUE)
-
+  taxa_venda$DATA_TAXA <- str_replace_all(string = taxa_venda$DATA_TAXA,pattern = c('\\/'='-','\\/'='-'))
+  
+  taxa_venda$DATA_TAXA <- dmy(taxa_venda$DATA_TAXA)
+  
   taxa_venda <- taxa_venda[1:3]
-
-  taxa_venda <- taxa_venda[seq(dim(taxa_venda)[1],1),]
-
+  
   taxa_venda <- unique(taxa_venda[c('DATA_TAXA','MOEDA','TAXA')])
   
-  taxa <- paste(taxa_venda$DATA_TAXA,taxa_venda$MOEDA)
+  taxa_venda <- taxa_venda[seq(dim(taxa_venda)[1],1),]
   
-  taxa <- as.data.frame(taxa)
-  
-  colnames(taxa)[1] <- 'dt_md'
-  colnames(taxa)[2] <- 'taxa'
-  
-  unicos <- unique(taxa)
-  
-  taxa <- cbind(taxa,taxa_venda$TAXA)
-  
-  unicos <- unicos[unicos$dt_md %in% names(which(table(c(taxa$dt_md)) == 1)),]
-  
-  unicos <- ifelse(unicos[unicos$dt_md %in% names(which(table(c(taxa$dt_md)) == 1)),],taxa$taxa)
+  taxa_venda <- taxa_venda %>%
+    group_by(DATA_TAXA,MOEDA) %>% 
+    summarise(TAXA = first(taxa_venda$TAXA))
   
 ##################### ################################ ######################################
 
@@ -70,7 +62,7 @@
 
 # Passo 1 - Formata CPF_CNPJ e RAZAO_SOCIAL (CONCLUIDO)
 
-  vendedores$CPF_CNPJ <- str_replace_all(string = vendedores$CPF_CNPJ,pattern = c('\\.'='','\\/'='','\\-'=''))
+  vendedores <- vendedores %>%  mutate(CPF_CNPJ_DESF = str_replace_all(string = vendedores$CPF_CNPJ,pattern = c('\\.'='','\\/'='','\\-'='')))
 
   vendedores <- mutate(vendedores,CPF_CNPJ_RAZAO_SOCIAL = paste(vendedores$CPF_CNPJ,vendedores$RAZAO_SOCIAL,sep = ' - '))
 
@@ -90,7 +82,7 @@
   )
 
   rvs <-  rvs %>%
-  mutate(VENDEDOR_INEXISTENTE = ifelse(!(rvs$ID_VENDEDOR %in% vendedores$CPF_CNPJ),1,0))
+          mutate(VENDEDOR_INEXISTENTE = ifelse(!(rvs$ID_VENDEDOR %in% vendedores$CPF_CNPJ),1,0))
 
 # Passo 3 - Marca moedas inexistentes
 
@@ -112,17 +104,15 @@
   #             AND nvl(RVS.PAIS_INEXISTENTE,0) = 0
   #             AND nvl(RVS.VENDEDOR_INEXISTENTE,0) = 0
   #             AND RVS.ID_RVS = OPER.ID_RVS);
-
-  operacoes <- operacoes %>% 
-                mutate(RVS_INEXISTENTE = ifelse(
-                  0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
-                         rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
-                                                   NVL(rvs$PAIS_INEXISTENTE,0) == 0,
-                                                   NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
-                         )
-                  ))
-                  ,1,0))
-
+  
+  operacoes <- operacoes %>%
+    group_by(ID_RVS) %>% 
+    summarise(RVS_INEXISTENTE = ifelse(0 == ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
+                                                   count_(NVL(rvs$MOEDA_INEXISTENTE,0) == 0) +
+                                                   count_(NVL(rvs$PAIS_INEXISTENTE,0) == 0) + 
+                                                   count_(NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0),0)
+                      ,1,0))
+  
 # Passo 6 - Copia, atualiza e marca NBS inexistentes NBS (IMPORTAR TABELA DE MAPEAMENTOS NBS)
 
   # UPDATE /*+ parallel(OPER,8) */ SISCOSERVV.IMPORTACAOOPERACOES OPER
@@ -130,30 +120,12 @@
   #                             FROM SISCOSERVV.MAPEAMENTONBSV1_0_V1_1 MAP
   #                             WHERE OPER.NBS_ATUALIZADA = MAP.CODIGOCLASSIFICACAO_V1_0)
   #                             WHERE OPER.NBS_ATUALIZADA NOT IN (select NBSV1_1_07CODIGOSCLASSIFICACAO.CODIGO from SISCOSERVV.NBSV1_1_07CODIGOSCLASSIFICACAO);
-  
-    operacoes <- operacoes %>% 
-      mutate(NBS_ATUALIZADA = ifelse(
-        0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
-                     rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
-                                               NVL(rvs$PAIS_INEXISTENTE,0) == 0,
-                                               NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
-                     )
-        ))
-        ,1,0))
-    
-    
-    mapa <- mapa %>% (if(operacoes$nbs_atualizada %in% mapa$codigo) 
-      which(operacoes$NBS_ATUALIZADA %!in$ (nbs$codigo)))
     
   # UPDATE /*+ parallel(OPER,8) */ siscoservv.IMPORTACAOOPERACOES Oper
   # SET NBS_INEXISTENTE = 1
   # WHERE not exists (SELECT 1
   #                   FROM siscoservv.NBSV1_1_07CODIGOSCLASSIFICACAO N
   #                   WHERE N.CODIGO =  Oper.NBS_ATUALIZADA);
-  
-  operacoes <- operacoes %>% mutate(NBS_INEXISTENTE = 
-                                      ifelse(operacoes$nbs_atualizada %in% nbs$codigo),1,0)
-
 
 # Passo 7 - Marca paises inexistentes
 
@@ -163,26 +135,35 @@
   #                   FROM siscoservv.PAISES
   #                   WHERE PAISES.CODIGO = Oper.CD_PAIS_DESTINO);
   
-  operacoes <-  operacoes %>%
-    mutate(PAIS_INEXISTENTE = ifelse(!(operacoes$CD_PAIS_DESTINO %in% paises$CODIGO),1,0))
+  operacoes <-  operacoes %>% mutate(PAIS_INEXISTENTE = ifelse(!(operacoes$CD_PAIS_DESTINO %in% paises$CODIGO),1,0))
   
 # Passo 8 - Calcula duracao e valor diario medio: Operacoes
 
   # UPDATE /*+ parallel(OPER,8) */ siscoservv.IMPORTACAOOPERACOES OPER
   # SET DURACAO = DATA_CONCLUSAO_OPERACAO - DATA_INICIO_OPERACAO + 1;
-
-  operacoes <- operacoes %>% mutate(duracao = DATA_CONCLUSAO_OPERACAO - DATA_INICIO_OPERACAO + 1)
   
+  operacoes$DATA_CONCLUSAO_OPERACAO <- str_replace_all(string = operacoes$DATA_CONCLUSAO_OPERACAO,pattern = c('\\/'='-','\\/'='-'))
+  
+  operacoes$DATA_INICIO_OPERACAO <- str_replace_all(string = operacoes$DATA_INICIO_OPERACAO,pattern = c('\\/'='-','\\/'='-'))
+  
+  operacoes$DATA_CONCLUSAO_OPERACAO <- dmy(operacoes$DATA_CONCLUSAO_OPERACAO)
+  
+  operacoes$DATA_INICIO_OPERACAO <- dmy(operacoes$DATA_INICIO_OPERACAO)
+
+  operacoes <- operacoes %>% mutate(DURACAO =  DATA_CONCLUSAO_OPERACAO - DATA_INICIO_OPERACAO + 1)
   
   # UPDATE /*+ parallel(OPER,8) */ siscoservv.IMPORTACAOOPERACOES
   # SET VALOR_DIARIO = VALOR_OPERACAO / DURACAO,
   # VALOR_DIARIO_DOLAR = VALOR_OPERACAO_DOLAR / DURACAO;
   
-  operacoes <- operacoces %>% mutate(
+  operacoes$VALOR_OPERACAO <- gsub(pattern = ',','.',operacoes$VALOR_OPERACAO)
+  
+  operacoes$VALOR_OPERACAO_DOLAR <- gsub(pattern = ',','.',operacoes$VALOR_OPERACAO_DOLAR)
+  
+  operacoes <- operacoes %>% mutate(
     
-    valor_diario = valor_operacao / duracao,
-    valor_diario_dolar = valor_operacao_dolar / duracao
-    
+    VALOR_DIARIO = as.double(VALOR_OPERACAO)/ as.double(DURACAO),
+    VALOR_DIARIO_DOLAR = as.double(VALOR_OPERACAO_DOLAR) / as.double(DURACAO)
   )
 
 # Passo 9 - Marca operacoes inexistentes
@@ -195,16 +176,6 @@
   #                  AND nvl(Oper.NBS_INEXISTENTE,0) = 0 --FALSE
   #                  AND nvl(Oper.PAIS_INEXISTENTE,0) = 0 --FALSE
   #                  AND Enq.ID_OPERACAO = Oper.ID_OPERACAO);
-  
-  serv_enq_vd <- operacoes %>% 
-    mutate(RVS_INEXISTENTE = ifelse(
-      0 == (ifelse(serv_enq_vd$ID_OPERACAO %in% operacoes$ID_OPERACAO,
-                   operacoes <- operacoes %>%  case_when(NVL(operacoes$MOEDA_INEXISTENTE,0) == 0,
-                                             NVL(operacoes$PAIS_INEXISTENTE,0) == 0,
-                                             NVL(operacoes$VENDEDOR_INEXISTENTE,0) == 0
-                   )
-      ))
-      ,1,0))
 
 # Passo 10 - Marca enquadramento inexistentes (IMPORTAR TABELA DE ENQUADRAMENTO)
 
@@ -214,9 +185,6 @@
   #                   FROM siscoservv.ENQUADRAMENTOS ENQ
   #                   WHERE IMP.CD_ENQUADRAMENTO = ENQ.CODIGO);
   
-  serv_enq_vd <- serv_enq_vd %>% 
-    mutate(enq_inexistente = ifelse(!(serv_enq_vd$cd_enquadramento %in% enq$codigo),1,0))
-
 # Passo 11 - Marca RVS inexistente
 
   # UPDATE /*+ parallel(RF,4) */ siscoservv.IMPORTACAORF RF
@@ -227,16 +195,6 @@
   #                   AND nvl(RVS.PAIS_INEXISTENTE,0) = 0
   #                   AND nvl(RVS.VENDEDOR_INEXISTENTE,0) = 0
   #                   AND RVS.ID_RVS = RF.ID_RVS);
-  
-  fatura <- fatura %>% 
-    mutate(RVS_INEXISTENTE = ifelse(
-      0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
-                   rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
-                                             NVL(rvs$PAIS_INEXISTENTE,0) == 0,
-                                             NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
-                   )
-      ))
-      ,1,0))
 
 # Passo 12 - Marca RF inexistente
 
@@ -247,14 +205,6 @@
   #                   WHERE nvl(RF.RVS_INEXISTENTE,0) = 0
   #                   AND RF.ID_RF = FAT.ID_RF);
   
-  item_fat <- item_fat %>% 
-    mutate(RF_INEXISTENTE = ifelse(
-      0 == (ifelse(fatura$ID_RF %in% item_fat$ID_RF,
-                   fatura <- fatura %>%  case_when(NVL(fatura$RVS_INEXISTENTE,0) == 0
-                   )
-      ))
-      ,1,0))
-
 # Passo 13 - Marca operacoes inexistentes
 
   # UPDATE /*+ parallel(PGTO,8) */ siscoservv.IMPORTACAOITENSFATURAMENTO FAT
@@ -265,16 +215,6 @@
   #                  AND nvl(Oper.NBS_INEXISTENTE,0) = 0
   #                  AND nvl(Oper.PAIS_INEXISTENTE,0) = 0
   #                  AND FAT.ID_OPERACAO = Oper.ID_OPERACAO);
-  
-  item_fat <- item_fat %>% 
-    mutate(OPERACAO_INEXISTENTE = ifelse(
-      0 == sum(ifelse(item_fat$id_operacao %in% operacoes$id_operacao,
-                   operacoes <- operacoes %>%  case_when(NVL(operacoes$NBS_INEXISTENTE,0) == 0,
-                                             NVL(operacoes$RVS_INEXISTENTE,0) == 0,
-                                             NVL(operacoes$PAIS_INEXISTENTE,0) == 0
-                   )
-      ))
-      ,1,0))
 
 # Passo 14 - Calcula Valor Pago em USD - Itens de FATURAMENTO
 
@@ -283,15 +223,8 @@
   #                                              from  siscoservv.IMPORTACAOOPERACOES OPER
   #                                              where FAT.ID_OPERACAO = Oper.ID_OPERACAO);
   
-  operacoes <- operacoes %>% 
-    mutate(RVS_INEXISTENTE = ifelse(
-      0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
-                   rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
-                                             NVL(rvs$PAIS_INEXISTENTE,0) == 0,
-                                             NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
-                   )
-      ))
-      ,1,0))
+  
+# ##################################### TRANSFERENCIA DE DADOS ###################################################
 
 # Passo 15 - Transfere dados
 
@@ -354,9 +287,6 @@
   # AND nvl(VENDEDOR_INEXISTENTE,0) = 0
   # AND MOEDA  in (select CODIGO from siscoservv.moeda) order by 1 ;
   
-  dados_rvs <- rvs %>% select(id_rvs,rvs,moeda,data_inclusao_rvs,tp_vendedor,id_vendedor,adquirente,pais_adquirente,
-                              uf) %>% 
-    filter(which(case_when()))
 # c) Copia Dados DE Importacao - Operacoes PARA Operacoes
 
   # --ALTER TABLE siscoservv.DADOSOPERACOES INITRANS 10;
@@ -394,16 +324,6 @@
   # WHERE nvl(RVS_INEXISTENTE,0) = 0
   # AND nvl(NBS_INEXISTENTE,0) = 0
   # AND nvl(PAIS_INEXISTENTE,0) = 0;
-  
-  fatura %>% 
-    mutate(RVS_INEXISTENTE = ifelse(
-      0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
-                   rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
-                                             NVL(rvs$PAIS_INEXISTENTE,0) == 0,
-                                             NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
-                   )
-      ))
-      ,1,0))
 
 # d) Copia Dados DE Importacao - Enquadramentos PARA Enquadramentos
 
@@ -417,16 +337,6 @@
   # FROM siscoservv.IMPORTACAOENQUADRAMENTOS
   # WHERE nvl(OPERACAO_INEXISTENTE,0) = 0
   # AND nvl(ENQUADRAMENTO_INEXISTENTE,0) = 0;
-  
-  fatura <- fatura %>% 
-    mutate(RVS_INEXISTENTE = ifelse(
-      0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
-                   rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
-                                             NVL(rvs$PAIS_INEXISTENTE,0) == 0,
-                                             NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
-                   )
-      ))
-      ,1,0))
 
 # e) Copia Dados DE Importacao - RF PARA RF
 
@@ -441,16 +351,6 @@
   # DATA_INCLUSAO_RF
   # FROM siscoservv.IMPORTACAORF
   # WHERE nvl(RVS_INEXISTENTE,0) = 0;
-  
-  fatura <- fatura %>% 
-    mutate(RVS_INEXISTENTE = ifelse(
-      0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
-                   rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
-                                             NVL(rvs$PAIS_INEXISTENTE,0) == 0,
-                                             NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
-                   )
-      ))
-      ,1,0))
 
 # f) Copia Dados DE Importacao - Itens de FATURAMENTO PARA Itens de FATURAMENTO
 
@@ -470,16 +370,6 @@
   # FROM siscoservv.IMPORTACAOITENSFATURAMENTO
   # WHERE nvl(RF_INEXISTENTE,0) = 0
   # AND nvl(OPERACAO_INEXISTENTE,0) = 0;
-  
-  fatura <- fatura %>% 
-    mutate(RVS_INEXISTENTE = ifelse(
-      0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
-                   rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
-                                             NVL(rvs$PAIS_INEXISTENTE,0) == 0,
-                                             NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
-                   )
-      ))
-      ,1,0))
 
 # --Passo 17
 
@@ -504,13 +394,3 @@
   # where M.DATAINICIO >= '01/10/2012'
   # and O.DATAINICIOSERVICO <= M.DATAFIM
   # and O.DATACONCLUSAOSERVICO >= M.DATAINICIO;
-  
-  fatura <- fatura %>% 
-    mutate(RVS_INEXISTENTE = ifelse(
-      0 == (ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
-                   rvs <- rvs %>%  case_when(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
-                                             NVL(rvs$PAIS_INEXISTENTE,0) == 0,
-                                             NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
-                   )
-      ))
-      ,1,0))
