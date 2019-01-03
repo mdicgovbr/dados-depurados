@@ -54,7 +54,7 @@
   
   taxa_venda <- taxa_venda %>%
     group_by(DATA_TAXA,MOEDA) %>% 
-    summarise(TAXA = first(taxa_venda$TAXA))
+    summarise(TAXA = first(taxa_venda$TAXA,taxa_venda$DATA_TAXA,taxa_venda$MOEDA))
   
 ##################### ################################ ######################################
 
@@ -96,24 +96,38 @@
 
 # Passo 5 - Marca rvs inexistentes - Operacoes
 
-  # UPDATE /*+ parallel(OPER,8) */ siscoservv.IMPORTACAOOPERACOES OPER
-  # SET RVS_INEXISTENTE = 1
-  # WHERE 0 =  (SELECT count(*)
-  #             FROM siscoservv.IMPORTACAORVS RVS
-  #             WHERE nvl(RVS.MOEDA_INEXISTENTE,0) = 0
-  #             AND nvl(RVS.PAIS_INEXISTENTE,0) = 0
-  #             AND nvl(RVS.VENDEDOR_INEXISTENTE,0) = 0
-  #             AND RVS.ID_RVS = OPER.ID_RVS);
-  
-  operacoes <- operacoes %>%
-    group_by(ID_RVS) %>% 
-    summarise(RVS_INEXISTENTE = ifelse(0 == ifelse(rvs$ID_RVS %in% operacoes$ID_RVS,
-                                                   count_(NVL(rvs$MOEDA_INEXISTENTE,0) == 0) +
-                                                   count_(NVL(rvs$PAIS_INEXISTENTE,0) == 0) + 
-                                                   count_(NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0),0)
-                      ,1,0))
-  
-# Passo 6 - Copia, atualiza e marca NBS inexistentes NBS (IMPORTAR TABELA DE MAPEAMENTOS NBS)
+   operacoes <- operacoes %>% 
+     mutate(RVS_INEXISTENTE = if_else(0 == if_else(rvs$ID_RVS == 1 & operacoes$ID_RVS == 1,
+                      (NVL(rvs$MOEDA_INEXISTENTE,0) == 0 + NVL(rvs$PAIS_INEXISTENTE,0) == 0 + NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0), 1L),1,0))
+   
+   
+   operacoes <- operacoes %>% 
+     mutate(RVS_INEXISTENTE = 
+   
+   if_else(condition = rvs$ID_RVS %in% operacoes$ID_RVS,
+                      
+                      true = 
+     
+     
+     if_else(condition = (0 == 
+     
+     count(
+          rvs %>% 
+     
+     select(MOEDA_INEXISTENTE,
+            PAIS_INEXISTENTE,
+            VENDEDOR_INEXISTENTE) %>%
+     
+     filter(NVL(rvs$MOEDA_INEXISTENTE,0) == 0,
+            NVL(rvs$PAIS_INEXISTENTE,0)  == 0,
+            NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0
+     ))),1,0),
+     
+     false = 0
+     
+     ))
+   
+# Passo 6 - Copia, atualiza e marca NBS inexistentes NBS
 
   # UPDATE /*+ parallel(OPER,8) */ SISCOSERVV.IMPORTACAOOPERACOES OPER
   # SET OPER.NBS_ATUALIZADA = ( SELECT MAP.CODIGOCLASSIFICACAO_V1_1
@@ -128,19 +142,10 @@
   #                   WHERE N.CODIGO =  Oper.NBS_ATUALIZADA);
 
 # Passo 7 - Marca paises inexistentes
-
-  # UPDATE /*+ parallel(OPER,4) */ siscoservv.IMPORTACAOOPERACOES Oper
-  # SET PAIS_INEXISTENTE = 1
-  # WHERE not exists (SELECT 1
-  #                   FROM siscoservv.PAISES
-  #                   WHERE PAISES.CODIGO = Oper.CD_PAIS_DESTINO);
   
   operacoes <-  operacoes %>% mutate(PAIS_INEXISTENTE = ifelse(!(operacoes$CD_PAIS_DESTINO %in% paises$CODIGO),1,0))
   
 # Passo 8 - Calcula duracao e valor diario medio: Operacoes
-
-  # UPDATE /*+ parallel(OPER,8) */ siscoservv.IMPORTACAOOPERACOES OPER
-  # SET DURACAO = DATA_CONCLUSAO_OPERACAO - DATA_INICIO_OPERACAO + 1;
   
   operacoes$DATA_CONCLUSAO_OPERACAO <- str_replace_all(string = operacoes$DATA_CONCLUSAO_OPERACAO,pattern = c('\\/'='-','\\/'='-'))
   
@@ -151,10 +156,6 @@
   operacoes$DATA_INICIO_OPERACAO <- dmy(operacoes$DATA_INICIO_OPERACAO)
 
   operacoes <- operacoes %>% mutate(DURACAO =  DATA_CONCLUSAO_OPERACAO - DATA_INICIO_OPERACAO + 1)
-  
-  # UPDATE /*+ parallel(OPER,8) */ siscoservv.IMPORTACAOOPERACOES
-  # SET VALOR_DIARIO = VALOR_OPERACAO / DURACAO,
-  # VALOR_DIARIO_DOLAR = VALOR_OPERACAO_DOLAR / DURACAO;
   
   operacoes$VALOR_OPERACAO <- gsub(pattern = ',','.',operacoes$VALOR_OPERACAO)
   
@@ -177,7 +178,7 @@
   #                  AND nvl(Oper.PAIS_INEXISTENTE,0) = 0 --FALSE
   #                  AND Enq.ID_OPERACAO = Oper.ID_OPERACAO);
 
-# Passo 10 - Marca enquadramento inexistentes (IMPORTAR TABELA DE ENQUADRAMENTO)
+# Passo 10 - Marca enquadramento inexistentes 
 
   # UPDATE /*+ parallel(IMP,4) */ siscoservv.IMPORTACAOENQUADRAMENTOS IMP
   # SET ENQUADRAMENTO_INEXISTENTE = 1
