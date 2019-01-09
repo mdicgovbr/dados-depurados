@@ -10,13 +10,13 @@
 
 # MELHORIA: recriar codigo de leitura de arquivos com um laco for
 
-  operacoes <- read_delim('dados/operacoes.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  operacoes <- read_delim('dados/operacoes.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'),n_max = 50000)
 
-  rvs <- read_delim('dados/rvs.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  rvs <- read_delim('dados/rvs.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'),n_max = 50000)
 
-  item_fat <- read_delim('dados/item_fat.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  item_fat <- read_delim('dados/item_fat.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'),n_max = 50000)
 
-  fatura <- read_delim('dados/faturas.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  fatura <- read_delim('dados/faturas.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'),n_max = 50000)
 
   VENDEDORES <- read_delim('dados/vendedores.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
 
@@ -28,7 +28,7 @@
   
   paises <- as.data.frame(read_delim('dados/paises.csv',delim = ',',col_names = TRUE),col_types = cols(.default = 'c'))
   
-    paises$CODIGO <- gsub("(?<![0-9])0+", "", paises$CODIGO, perl = TRUE,col_types = cols(.default = 'c'))
+    paises$CODIGO <- gsub("(?<![0-9])0+", "", paises$CODIGO, perl = TRUE)
   
   moeda <- as.data.frame(read_delim('dados/moedas.csv',delim = ',',col_names = TRUE,locale = locale(encoding = "latin1"),quote = '',col_types = cols(.default = 'c')))
   
@@ -88,13 +88,11 @@
   
 ##################### ################################ ######################################
 
-# Reescrita dos codigos SQL para codigo R
-
 # Passo 1 - Formata CPF_CNPJ e RAZAO_SOCIAL (CONCLUIDO)
 
-  VENDEDORES <- VENDEDORES %>%  mutate(CPF_CNPJ_DESF = str_replace_all(string = VENDEDORES$CPF_CNPJ,pattern = c('\\.'='','\\/'='','\\-'='')))
+  VENDEDORES <- VENDEDORES %>% mutate(CPF_CNPJ_DESF = str_replace_all(string = VENDEDORES$CPF_CNPJ,pattern = c('\\.'='','\\/'='','\\-'='')))
 
-  VENDEDORES <- mutate(vendedores,CPF_CNPJ_RAZAO_SOCIAL = paste(VENDEDORES$CPF_CNPJ,VENDEDORES$RAZAO_SOCIAL,sep = ' - '))
+  VENDEDORES <- VENDEDORES %>% mutate(CPF_CNPJ_RAZAO_SOCIAL = paste(VENDEDORES$CPF_CNPJ,VENDEDORES$RAZAO_SOCIAL,sep = ' - '))
 
 # Passo 2 - Tipo e Id do vendedor e Marca vendedores inexistentes : RVS
 
@@ -145,16 +143,7 @@
    
 # Passo 6 - Copia, atualiza e marca NBS inexistentes NBS
    
-  # ALTER TABLE IMPORTACAOOPERACOES ADD NBS_ATUALIZADA VARCHAR2(255);
-  # UPDATE IMPORTACAOOPERACOES SET NBS_ATUALIZADA = NBS;
-   
-   operacoes <- operacoes %>% mutate(NBS_ATUALIZADA = NBS)
-   
-  # UPDATE /*+ parallel(OPER,8) */ SISCOSERVV.IMPORTACAOOPERACOES OPER
-  # SET OPER.NBS_ATUALIZADA = ( SELECT MAP.CODIGOCLASSIFICACAO_V1_1
-  #                             FROM SISCOSERVV.MAPEAMENTONBSV1_0_V1_1 MAP
-  #                             WHERE OPER.NBS_ATUALIZADA = MAP.CODIGOCLASSIFICACAO_V1_0)
-  #                             WHERE OPER.NBS_ATUALIZADA NOT IN (select NBSV1_1_07CODIGOSCLASSIFICACAO.CODIGO from SISCOSERVV.NBSV1_1_07CODIGOSCLASSIFICACAO);
+  operacoes <- operacoes %>% mutate(NBS_ATUALIZADA = NBS)
   
   valores <- unique(operacoes %>% select(NBS_ATUALIZADA) %>% 
                       filter(operacoes$NBS_ATUALIZADA %in% mapa$CODIGOCLASSIFICACAO_V1_0 &
@@ -167,6 +156,19 @@
   valores <- left_join(valores,mapa,'CODIGOCLASSIFICACAO_V1_0')
   
   colnames(valores)[1] <- 'NBS_ATUALIZADA'
+  
+  indx <- match(operacoes$NBS_ATUALIZADA,valores$NBS_ATUALIZADA,nomatch = 0)
+  
+  operacoes$NBS_ATUALIZADA[indx != 0] <- valores$CODIGOCLASSIFICACAO_V1_1[indx]
+  
+  operacoes <- operacoes %>% 
+    mutate(NBS_INEXISTENTE = if_else(0 == count(nbs %>% 
+                                                  select(CODIGO) %>% 
+                                                  filter(nbs$CODIGO %in% operacoes$NBS_ATUALIZADA))
+                                     ,1,0)
+           )
+  
+  rm(indx,valores)
   
 # Passo 7 - Marca paises inexistentes
   
@@ -203,7 +205,7 @@
                                                        filter(NVL(operacoes$RVS_INEXISTENTE,0) == 0 &
                                                                 NVL(operacoes$NBS_INEXISTENTE,0)  == 0 &
                                                                 NVL(operacoes$PAIS_INEXISTENTE,0) == 0 &
-                                                                serv_enq_vd$ID_SERVICO %in% operacoes$ID_OPERACAO
+                                                                operacoes$ID_OPERACAO %in% serv_enq_vd$ID_SERVICO
                                                               )
                                                      )
                                           ,1,0)
@@ -212,7 +214,7 @@
 # Passo 10 - Marca enquadramento inexistentes 
                                
    serv_enq_vd <- serv_enq_vd %>%
-     mutate(ENQUAD_INEXISTENTE = ifelse(serv_enq_vd$CD_ENQUADRAMENTO %in% enquad$CODIGO,0,1)
+     mutate(ENQUAD_INEXISTENTE = ifelse(serv_enq_vd$CD_ENQUADRAMENTO %in% enquadramento$CODIGO,0,1)
             )
            
 # Passo 11 - Marca RVS inexistente
@@ -259,15 +261,16 @@
                      ,1,0)
            )
   
-# Passo 15 - Transfere dados
+# Passo 14 - Transfere dados
 
 # a) Copia Dados DE Importacao - RVS PARA RVS
   
-  RVS <- rvs %>% filter(
-    NVL(rvs$MOEDA_INEXISTENTE,0) == 0 &
-    NVL(rvs$PAIS_INEXISTENTE,0)  == 0 &
-    NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0 &
-    rvs$MOEDA %in% MOEDA$CODIGO 
+  RVS <- rvs %>% 
+    filter(
+      NVL(rvs$MOEDA_INEXISTENTE,0) == 0 &
+      NVL(rvs$PAIS_INEXISTENTE,0)  == 0 &
+      NVL(rvs$VENDEDOR_INEXISTENTE,0) == 0 &
+      rvs$MOEDA %in% moeda$CODIGO 
   )
          
 # b) Copia Dados DE Importacao - Operacoes PARA Operacoes
@@ -281,8 +284,8 @@
 # c) Copia Dados DE Importacao - Enquadramentos PARA Enquadramentos
   
   ENQUADRAMENTO <- serv_enq_vd %>% filter(
-    NVL(serv_enq_vd$OPERACOES_INEXISTENTE,0) == 0 &
-    NVL(serv_enq_vd$ENQUADRAMENTO_INEXISTENTE,0)  == 0
+    NVL(serv_enq_vd$OPERACAO_INEXISTENTE,0) == 0 &
+    NVL(serv_enq_vd$ENQUAD_INEXISTENTE,0)  == 0
     )
 
 # d) Copia Dados DE Importacao - RF PARA RF
@@ -315,12 +318,8 @@
 # GROUP BY DADOSOPERACOES.CODIGONBS, NBSV1_1_07CODIGOSCLASSIFICACAO.CODIGODESCRICAO
 # ORDER BY VALOR DESC;
   
-  NBS <- operacoes %>% 
-    select(codigonbs, codigodescricao,sum(valor_operacao_usd)) %>% 
-    nbs %>% operacoes$codigonbs %in% nbs$codigo %>% 
-    which(operacoes$datainicioservico < as.Date('2019-01-01', 'YYYY-MM-DD') & operacoes$dataconclusaoservico > as.Date('2017-12-31', 'YYYY-MM-DD')) %>% 
-    group_by(operacoes$codigonbs,nbs$codigodescricao) %>% 
-    sort(operacoes$valoroperacao,desc)
+  # operacoes,nbs
+  # vendedores,rvs,operacoes,nbs
   
 # Gera aba -> EMPRESA (PASSO 2)
   
