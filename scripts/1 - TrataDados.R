@@ -10,37 +10,37 @@
 
 # MELHORIA: recriar codigo de leitura de arquivos com um laco for
 
-  operacoes <- read_delim('operacao.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  operacoes <- read_delim('dados/operacoes.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X11 = col_skip()),quote = "")
+  
+  rvs <- read_delim('dados/rvs.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X14 = col_skip()),quote = "")
 
-  rvs <- read_delim('rvs.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  item_fat <- read_delim('dados/item_fat.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X7 = col_skip()),quote = "")
 
-  item_fat <- read_delim('item_fat.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  fatura <- read_delim('dados/faturas.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X6 = col_skip()),quote = "")
 
-  fatura <- read_delim('fatura.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  vendedores <- read_delim('dados/vendedores.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
 
-  VENDEDORES <- read_delim('vendedores.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  serv_enq_vd <- read_delim('dados/serv_enq_vd.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
 
-  serv_enq_vd <- read_delim('serv_enq_vd.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
-
-  taxa_venda <- read_delim('taxa_venda.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  taxa_venda <- read_delim('dados/taxa_venda.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
 
 # tabelas apoio
   
-  paises <- as.data.frame(read_delim('pais.csv',delim = ',',col_names = TRUE),col_types = cols(.default = 'c'))
+  paises <- as.data.frame(read_delim('dados/paises.csv',delim = ',',col_names = TRUE),col_types = cols(.default = 'c'))
   
     paises$CODIGO <- gsub("(?<![0-9])0+", "", paises$CODIGO, perl = TRUE)
   
-  moeda <- as.data.frame(read_delim('moeda.csv',delim = ',',col_names = TRUE,locale = locale(encoding = "latin1"),quote = '',col_types = cols(.default = 'c')))
+  moeda <- as.data.frame(read_delim('dados/moedas.csv',delim = ',',col_names = TRUE,locale = locale(encoding = "latin1"),quote = '',col_types = cols(.default = 'c')))
   
     moeda$CODIGO <- gsub('"','',moeda$CODIGO)
     
     moeda$CODIGO <- gsub("(?<![0-9])0+", "", moeda$CODIGO, perl = TRUE)
 
-  nbs <- as.data.frame(read_delim('nbs.csv',delim = ',',col_names = TRUE),col_types = cols(.default = 'c'))
+  nbs <- read_delim('dados/nbs.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c'))
+                       
+  enquadramento <- as.data.frame(read_delim('dados/enquadramento.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c')))
   
-  enquadramento <- read_delim('enquadramento.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c'))
-  
-  mapeamento <- read_delim('mapeamento.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c'))
+  mapeamento <- as.data.frame(read_delim('dados/mapeamento.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c')))
   
 ##################### ############################ ##########################################
 
@@ -86,9 +86,11 @@
 
 # Passo 1 - Formata CPF_CNPJ e RAZAO_SOCIAL (CONCLUIDO)
 
-  VENDEDORES <- VENDEDORES %>% mutate(CPF_CNPJ_DESF = str_replace_all(string = VENDEDORES$CPF_CNPJ,pattern = c('\\.'='','\\/'='','\\-'='')))
+  vendedores$CPF_CNPJ <- str_replace_all(string = vendedores$CPF_CNPJ,pattern = c('\\.'='','\\/'='','\\-'=''))
 
-  VENDEDORES <- VENDEDORES %>% mutate(CPF_CNPJ_RAZAO_SOCIAL = paste(VENDEDORES$CPF_CNPJ,VENDEDORES$RAZAO_SOCIAL,sep = ' - '))
+  vendedores <- vendedores %>% mutate(CPF_CNPJ_RAZAO_SOCIAL = paste(CPF_CNPJ,RAZAO_SOCIAL,sep = ' - '))
+  
+  vendedores['RAZAO_SOCIAL'] <- NULL
 
 # Passo 2 - Tipo e Id do vendedor e Marca vendedores inexistentes : RVS
 
@@ -98,7 +100,7 @@
                                   !is.na(CNPJ_VENDEDOR) ~ 'PJ')
   )
 
-  rvs <- rvs %>% mutate( ID_VENDEDOR =
+  rvs <- rvs %>% mutate( CPF_CNPJ =
                          
                          case_when(CNPJ_VENDEDOR == 'n/a' ~ rvs$CPF_VENDEDOR,
                                    !is.na(rvs$CNPJ_VENDEDOR) ~ rvs$CNPJ_VENDEDOR)
@@ -106,7 +108,7 @@
   )
   
   rvs <-  rvs %>%
-          mutate(VENDEDOR_INEXISTENTE = if_else((rvs$ID_VENDEDOR %in% str_trim(VENDEDORES$CPF_CNPJ_DESF)),0,1))
+          mutate(VENDEDOR_INEXISTENTE = if_else((rvs$CPF_CNPJ %in% str_trim(vendedores$CPF_CNPJ)),0,1))
   
 # Passo 3 - Marca moedas inexistentes
 
@@ -139,11 +141,9 @@
    
 # Passo 6 - Copia, atualiza e marca NBS inexistentes NBS
    
-  operacoes <- operacoes %>% mutate(NBS_ATUALIZADA = NBS)
-  
-  valores <- unique(operacoes %>% select(NBS_ATUALIZADA) %>% 
-                      filter(operacoes$NBS_ATUALIZADA %in% mapeamento$CODIGOCLASSIFICACAO_V1_0 &
-                               !(operacoes$NBS_ATUALIZADA %in% nbs$CODIGO)
+  valores <- unique(operacoes %>% select(NBS) %>% 
+                      filter(operacoes$NBS %in% mapeamento$CODIGOCLASSIFICACAO_V1_0 &
+                               !(operacoes$NBS %in% nbs$CODIGO)
                              )
                     )
   
@@ -151,16 +151,16 @@
    
   valores <- left_join(valores,mapeamento,'CODIGOCLASSIFICACAO_V1_0')
   
-  colnames(valores)[1] <- 'NBS_ATUALIZADA'
+  colnames(valores)[1] <- 'NBS'
   
-  indx <- match(operacoes$NBS_ATUALIZADA,valores$NBS_ATUALIZADA,nomatch = 0)
+  indx <- match(operacoes$NBS,valores$NBS,nomatch = 0)
   
-  operacoes$NBS_ATUALIZADA[indx != 0] <- valores$CODIGOCLASSIFICACAO_V1_1[indx]
+  operacoes$NBS[indx != 0] <- valores$CODIGOCLASSIFICACAO_V1_1[indx]
   
   operacoes <- operacoes %>% 
     mutate(NBS_INEXISTENTE = if_else(0 == count(nbs %>% 
                                                   select(CODIGO) %>% 
-                                                  filter(nbs$CODIGO %in% operacoes$NBS_ATUALIZADA))
+                                                  filter(nbs$CODIGO %in% operacoes$NBS))
                                      ,1,0)
            )
   
@@ -185,6 +185,10 @@
   operacoes$VALOR_OPERACAO <- gsub(pattern = ',','.',operacoes$VALOR_OPERACAO)
   
   operacoes$VALOR_OPERACAO_DOLAR <- gsub(pattern = ',','.',operacoes$VALOR_OPERACAO_DOLAR)
+  
+  operacoes$VALOR_OPERACAO_DOLAR <- as.double(operacoes$VALOR_OPERACAO_DOLAR)
+  
+  operacoes$VALOR_OPERACAO <- as.double(operacoes$VALOR_OPERACAO)
   
   operacoes <- operacoes %>% mutate(
     
@@ -279,7 +283,7 @@
     NVL(operacoes$PAIS_INEXISTENTE,0) == 0
     )
   
-  rm(operacoes)
+    rm(operacoes)
 
 # c) Copia Dados DE Importacao - Enquadramentos PARA Enquadramentos
   
@@ -313,70 +317,89 @@
   
 # Gera aba -> NBS (PASSO 1)
   
-  OPERACOES$VALOR_OPERACAO_DOLAR <- as.double(OPERACOES$VALOR_OPERACAO_DOLAR)
-  
   NBS <- OPERACOES %>% 
     filter((OPERACOES$DATA_INICIO_OPERACAO < '2018-01-01' & OPERACOES$DATA_CONCLUSAO_OPERACAO > '2016-12-31') &
-             OPERACOES$NBS_ATUALIZADA %in% nbs$CODIGO) %>% 
-    group_by(CODIGO = NBS_ATUALIZADA) %>% 
+             OPERACOES$NBS %in% nbs$CODIGO) %>% 
+    group_by(CODIGO = NBS) %>% 
     summarise(VALOR = sum(VALOR_OPERACAO_DOLAR))
   
   nbs_1 <- nbs %>% select(CODIGO,DESCRICAO = CODIGODESCRICAO)
   
   NBS <- merge(NBS,nbs_1,by = 'CODIGO')
   
-  NBS <- NBS %>% select(CODIGO,DESCRICAO,VALOR)
+  rm(nbs_1)
   
   NBS <- NBS %>% arrange(desc(VALOR)) %>% select(CODIGO,DESCRICAO,VALOR)
   
 # Gera aba -> EMPRESA (PASSO 2)
   
-# SELECT 
-  # DADOSOPERACOES.CODIGONBS || '-' ||
-  # DADOSRVS.IDENTIFICACAOVENDEDOR CHAVE,'_' ||
-  # DADOSOPERACOES.CODIGONBS CODIGO_NBS,
-  # NBSV1_1_07CODIGOSCLASSIFICACAO.CODIGODESCRICAO NBS,
-  # '_' || DADOSRVS.IDENTIFICACAOVENDEDOR ID_VENDEDOR,
-  # DADOSVENDEDORES.IDENTIFICACAONOME VENDEDOR,
-  # SUM(DADOSOPERACOES.VALOROPERACAOUSD) VALOR,
-  # AVG(DADOSOPERACOES.VALORDIARIOUSD) VALOR_DIARIO_MEDIO
+    vend <- vendedores %>% select(CPF_CNPJ,CPF_CNPJ_RAZAO_SOCIAL)
   
+    vend$CPF_CNPJ <- str_trim(vend$CPF_CNPJ,side = 'both')
+
+    RVS <- left_join(RVS,vend,"CPF_CNPJ")
+    
+    rvs_1 <- RVS %>% select(ID_RVS,CPF_CNPJ,CPF_CNPJ_RAZAO_SOCIAL)
   
-# FROM DADOSVENDEDORES JOIN DADOSRVS
-  # ON DADOSVENDEDORES.IDENTIFICACAO = DADOSRVS.IDENTIFICACAOVENDEDOR
+  OPERACOES <- left_join(OPERACOES,rvs_1,"ID_RVS")
+    
+    nbs_1 <- nbs %>% select(CODIGO,CODIGODESCRICAO)
   
-  # JOIN DADOSOPERACOES ON DADOSRVS.ID_RVS = DADOSOPERACOES.ID_RVS
-  # JOIN NBSV1_1_07CODIGOSCLASSIFICACAO
-  # ON DADOSOPERACOES.CODIGONBS = NBSV1_1_07CODIGOSCLASSIFICACAO.CODIGO
+    colnames(nbs_1)[1] <- 'NBS'
   
+  OPERACOES <- left_join(OPERACOES,nbs_1,"NBS")
+  
+  rm(rvs_1,nbs_1)
+  
+EMPRESAS <-   OPERACOES %>% filter((DATA_INICIO_OPERACAO < '2018-01-01' & DATA_CONCLUSAO_OPERACAO > '2016-12-31') &
+                         (VALOR_DIARIO_DOLAR > 0)) %>%
+  group_by(NBS) %>% 
+    mutate(nbs = NBS) %>% 
+  group_by(CODIGODESCRICAO) %>% 
+    mutate(codigo_descricao = CODIGODESCRICAO) %>% 
+  group_by(CPF_CNPJ) %>% 
+    mutate(id_identificador = CPF_CNPJ) %>% 
+  group_by(CPF_CNPJ_RAZAO_SOCIAL) %>% 
+    mutate(nome = CPF_CNPJ_RAZAO_SOCIAL,
+           valor_total_emp = sum(VALOR_OPERACAO_DOLAR),
+           valor_diario_medio_emp = mean(VALOR_DIARIO_DOLAR)
+           )
+
+EMPRESAS <- EMPRESAS %>% arrange(valor_total_emp)
     
   
-# WHERE DADOSOPERACOES.DATAINICIOSERVICO < TO_DATE('2017-01-01', 'YYYY-MM-DD') AND DADOSOPERACOES.DATACONCLUSAOSERVICO > TO_DATE('2015-12-31', 'YYYY-MM-DD')
-  # AND DADOSOPERACOES.VALORDIARIOUSD > 0
-# GROUP BY DADOSOPERACOES.CODIGONBS,NBSV1_1_07CODIGOSCLASSIFICACAO.CODIGODESCRICAO,DADOSRVS.IDENTIFICACAOVENDEDOR,DADOSVENDEDORES.IDENTIFICACAONOME
-# ORDER BY VALOR DESC;
   
-EMPRESAS <- OPERACOES %>%
-  select(
-    paste(nbs$CODIGO,VENDEDORES$CPF_CNPJ_DESF,sep = '-'),
-    nbs$CODIGO,
-    nbs$CODIGODESCRICAO,
-    VENDEDORES$ID_VENDEDOR,
-    VENDEDORES$CPF_CNPJ_RAZAO_SOCIAL
-    ) %>% 
-  filter(
-    (OPERACOES$DATA_INICIO_OPERACAO < '2018-01-01'
-     & OPERACOES$DATA_CONCLUSAO_OPERACAO > '2016-12-31') &
-      (OPERACOES$VALOR_DIARIO_DOLAR > 0) &
-      (RVS$ID_VENDEDOR %in% VENDEDORES$CPF_CNPJ_DESF) &
-      (OPERACOES$ID_RVS %in% RVS$ID_RVS) &
-      (OPERACOES$NBS_ATUALIZADA %in% nbs$CODIGO)
-    ) 
-  group_by(OPERACOES$NBS_ATUALIZADA, nbs$CODIGODESCRICAO,RVS$ID_VENDEDOR,VENDEDORES$CPF_CNPJ_RAZAO_SOCIAL) %>% 
-    
-  summarise(
-    
-    VALOR_TOTAL_EMP = sum(VALOR_OPERACAO_DOLAR),
-    VALOR_DIARIO_MEDIO = mean(VALOR_OPERACAO_DOLAR)
-    
-    )
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+      
