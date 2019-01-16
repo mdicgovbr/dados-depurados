@@ -8,7 +8,7 @@
 # Formatar dados
 
   names(NBS) <- c('cd_nbs','desc_nbs','vlr_tot_nbs')
-  names(EMPRESAS) <- c('nbs_cpf/cnpj','cd_nbs','desc_nbs','cpf_cnpj','cnpj_nome','vlr_tot_emp','vlr_dia_med_emp')
+  names(EMPRESAS) <- c('cd_nbs','desc_nbs','cpf_cnpj','cpf_cnpj/nome','vlr_tot_emp','vlr_dia_med_emp')
 
 # adcionar seguintes colunas na variavel nbs_aquisicao:
   # desvio_padrao_nbs

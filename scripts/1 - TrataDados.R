@@ -6,45 +6,50 @@
   library(statnet.common)
   library(lubridate)
 
+############################################################################################ 
+  
 # Importacao dos arquivos para depuracao
 
-# MELHORIA: recriar codigo de leitura de arquivos com um laco for
+    # MELHORIA: recriar codigo de leitura de arquivos com um laco for
 
-  operacoes <- read_delim('dados/operacoes.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X11 = col_skip()),quote = "")
+  operacoes <- read_delim('dados/operacoes.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X11 = col_skip()),quote = "",trim_ws = TRUE)
   
-  rvs <- read_delim('dados/rvs.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X14 = col_skip()),quote = "")
+  rvs <- read_delim('dados/rvs.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X14 = col_skip()),quote = "",trim_ws = TRUE)
 
-  item_fat <- read_delim('dados/item_fat.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X7 = col_skip()),quote = "")
+  item_fat <- read_delim('dados/item_fat.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X7 = col_skip()),quote = "",trim_ws = TRUE)
 
-  fatura <- read_delim('dados/faturas.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X6 = col_skip()),quote = "")
+  fatura <- read_delim('dados/faturas.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c',X6 = col_skip()),quote = "",trim_ws = TRUE)
 
-  vendedores <- read_delim('dados/vendedores.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  vendedores <- read_delim('dados/vendedores.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'),trim_ws = TRUE)
 
-  serv_enq_vd <- read_delim('dados/serv_enq_vd.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  serv_enq_vd <- read_delim('dados/serv_enq_vd.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'),trim_ws = TRUE)
 
-  taxa_venda <- read_delim('dados/taxa_venda.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'))
+  taxa_venda <- read_delim('dados/taxa_venda.csv',delim = ';',col_names = TRUE,col_types = cols(.default = 'c'),trim_ws = TRUE)
 
-# tabelas apoio
+# tabelas de referência
   
-  paises <- as.data.frame(read_delim('dados/paises.csv',delim = ',',col_names = TRUE),col_types = cols(.default = 'c'))
+  paises <- as.data.frame(read_delim('dados/paises.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c',X12 = col_skip()),trim_ws = TRUE))
   
     paises$CODIGO <- gsub("(?<![0-9])0+", "", paises$CODIGO, perl = TRUE)
   
-  moeda <- as.data.frame(read_delim('dados/moedas.csv',delim = ',',col_names = TRUE,locale = locale(encoding = "latin1"),quote = '',col_types = cols(.default = 'c')))
+  moeda <- as.data.frame(read_delim('dados/moedas.csv',delim = ',',col_names = TRUE,locale = locale(encoding = "latin1"),quote = '',col_types = cols(.default = 'c')
+                                    ,trim_ws = TRUE))
   
     moeda$CODIGO <- gsub('"','',moeda$CODIGO)
     
     moeda$CODIGO <- gsub("(?<![0-9])0+", "", moeda$CODIGO, perl = TRUE)
 
-  nbs <- read_delim('dados/nbs.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c'))
+  nbs <- read_delim('dados/nbs.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c'),trim_ws = TRUE,
+                    locale = locale(encoding = "latin1"))
                        
-  enquadramento <- as.data.frame(read_delim('dados/enquadramento.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c')))
+  enquadramento <- as.data.frame(read_delim('dados/enquadramento.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c'),trim_ws = TRUE,
+                                            locale = locale(encoding = "latin1")))
   
-  mapeamento <- as.data.frame(read_delim('dados/mapeamento.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c')))
+  mapeamento <- as.data.frame(read_delim('dados/mapeamento.csv',delim = ',',col_names = TRUE,col_types = cols(.default = 'c'),trim_ws = TRUE))
   
 ##################### ############################ ##########################################
 
-# Tratamento do arquivo taxa_venda (USAR GROUP_BY, SUMMARISE AND FIRST)
+# Tratamento do arquivo taxa_venda
   
   taxa_venda$DATA_TAXA <- str_replace_all(string = taxa_venda$DATA_TAXA,pattern = c('\\/'='-','\\/'='-'))
   
@@ -83,6 +88,8 @@
   rm(nomes,taxa_venda)
   
 ##################### ################################ ######################################
+  
+# Tratamento para encontrar dados inexistentes
 
 # Passo 1 - Formata CPF_CNPJ e RAZAO_SOCIAL (CONCLUIDO)
 
@@ -108,7 +115,7 @@
   )
   
   rvs <-  rvs %>%
-          mutate(VENDEDOR_INEXISTENTE = if_else((rvs$CPF_CNPJ %in% str_trim(vendedores$CPF_CNPJ)),0,1))
+          mutate(VENDEDOR_INEXISTENTE = if_else((rvs$CPF_CNPJ %in% vendedores$CPF_CNPJ),0,1))
   
 # Passo 3 - Marca moedas inexistentes
 
@@ -260,8 +267,9 @@
                                 )
                      ,1,0)
            )
+#################################################################################################
   
-# Passo 14 - Transfere dados
+# Passo 14 - Transferencia de dados consistentes
 
 # a) Copia Dados DE Importacao - RVS PARA RVS
   
@@ -340,66 +348,27 @@
     RVS <- left_join(RVS,vend,"CPF_CNPJ")
     
     rvs_1 <- RVS %>% select(ID_RVS,CPF_CNPJ,CPF_CNPJ_RAZAO_SOCIAL)
+    
+    rm(RVS)
   
   OPERACOES <- left_join(OPERACOES,rvs_1,"ID_RVS")
+  
+    rm(rvs_1)
     
     nbs_1 <- nbs %>% select(CODIGO,CODIGODESCRICAO)
   
-    colnames(nbs_1)[1] <- 'NBS'
+    colnames(nbs)[1] <- 'NBS'
   
-  OPERACOES <- left_join(OPERACOES,nbs_1,"NBS")
+  OPERACOES <- left_join(OPERACOES,nbs,"NBS")
   
-  rm(rvs_1,nbs_1)
+  rm(nbs_1)
   
-EMPRESAS <-   OPERACOES %>% filter((DATA_INICIO_OPERACAO < '2018-01-01' & DATA_CONCLUSAO_OPERACAO > '2016-12-31') &
+EMPRESAS <-   OPERACOES %>%
+                filter((DATA_INICIO_OPERACAO < '2018-01-01' & DATA_CONCLUSAO_OPERACAO > '2016-12-31') &
                          (VALOR_DIARIO_DOLAR > 0)) %>%
-  group_by(NBS) %>% 
-    mutate(nbs = NBS) %>% 
-  group_by(CODIGODESCRICAO) %>% 
-    mutate(codigo_descricao = CODIGODESCRICAO) %>% 
-  group_by(CPF_CNPJ) %>% 
-    mutate(id_identificador = CPF_CNPJ) %>% 
-  group_by(CPF_CNPJ_RAZAO_SOCIAL) %>% 
-    mutate(nome = CPF_CNPJ_RAZAO_SOCIAL,
-           valor_total_emp = sum(VALOR_OPERACAO_DOLAR),
-           valor_diario_medio_emp = mean(VALOR_DIARIO_DOLAR)
-           )
-
-EMPRESAS <- EMPRESAS %>% arrange(valor_total_emp)
+                group_by(NBS,CODIGODESCRICAO,CPF_CNPJ,CPF_CNPJ_RAZAO_SOCIAL) %>% 
+                summarise(
+                  valor_total_emp = sum(VALOR_OPERACAO_DOLAR),
+                  valor_diario_medio_emp = mean(VALOR_DIARIO_DOLAR)
+                  ) %>% arrange(desc(valor_total_emp))
     
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-      

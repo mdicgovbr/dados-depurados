@@ -103,8 +103,5 @@
 
 # Apresenta dados em formato de tabela
 
-  datatable(concorrentes,rownames = FALSE, editable = TRUE,filter = 'top',options = list(pageLength = 10, autoWidth = FALSE))
-
   datatable(operacoes[5:9],rownames = FALSE, editable = TRUE,filter = 'top',options = list(pageLength = 10, autoWidth = FALSE))
-
-  datatable(destino,rownames = FALSE, editable = TRUE,filter = 'top',options = list(pageLength = 10, autoWidth = FALSE))
+  
