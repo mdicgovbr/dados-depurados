@@ -1,6 +1,6 @@
 # GERA PANILHA FORMATADA PARA DIVULGACAO DOS DADOS
 
-# Carregamento das bibliotecas necessarias para execução do código
+# Carregamento das bibliotecas necessarias para execuÃ§Ã£o do cÃ³digo
 
   library(tidyverse)
   library(readxl)
@@ -8,79 +8,41 @@
 
 # Importacao dos arquivos
 
-  vlr_total <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/01-Valor_Total-2017.csv', fileEncoding = 'UTF16LE',
-             skip = 3, col.names = 'valor_total', sep = ',')
+  vlr_total <- read_xlsx('dados_publicacao/01-Valor_Total-2017.xlsx', col_names = TRUE)
 
-  qtde_vend_rvs_oper_17 <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/01-Qtde_Vendedores_RVS_Operações-2017.csv',
-                                      fileEncoding = 'UTF16LE', skip = 3, sep = ',', col.names = c('qtde_vend_por_oper_rvs','qtde_rvs_dist_por_oper','qtde_oper_rvs'))
+  qtde_vend_rvs_oper_17 <- read_xlsx(path = 'dados_publicacao/01-Qtde_Vendedores_RVS_Operações-2017.xlsx',col_names = TRUE)
 
+  serv_pos_vlr <- read_xlsx('dados_publicacao/02-Serviços(Posição)-2017-Valores.xlsx',col_names = TRUE)
 
+  serv_pos_vend <- read_xlsx('dados_publicacao/02-Serviços(Posição)-2017-Vendedores.xlsx',col_names = TRUE)
 
+  pais_vlr <- read_xlsx('dados_publicacao/03-Países-2017-Valores.xlsx',col_names = TRUE)
 
-  serv_pos_vlr <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/02-Serviços(Posição)-2017-Valores.csv',
-             fileEncoding = 'UTF16LE', skip = 3, col.names = c('cd_nbs','desc_nbs','vlr_dil_rvs (USD)'), sep = ',')
+  pais_vend <- read_xlsx('dados_publicacao/03-Países-2017-Vendedores.xlsx',col_names = TRUE)
 
-  serv_pos_vend <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/02-Serviços(Posição)-2017-Vendedores.csv',
-             fileEncoding = 'UTF16LE', skip = 3, col.names = c('cd_nbs','desc_nbs','qtde_vend'), sep = ',')
+  pais_serv_vlr <- read_xlsx('dados_publicacao/04-Países_Serviços(Posição)-2017-Valores.xlsx',col_names = TRUE)
 
+  pais_serv_vend <- read_xlsx('dados_publicacao/04-Países_Serviços(Posição)-2017-Vendedores.xlsx')
 
+  uf_vlr <- read_xlsx('dados_publicacao/05-UF-2017-Valores.xlsx',col_names = TRUE)
 
+  uf_vend <- read_xlsx('dados_publicacao/05-UF-2017-Vendedores.xlsx',col_names = TRUE)
 
-  pais_vlr <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/03-Países-2017-Valores.csv',
-                         fileEncoding = 'UTF16LE', skip = 3,col.names = c('pais','','vlr_dil_rvs (USD)'),sep = ',', colClasses = c(NA,'NULL'))
+  uf_serv_vlr <- read_xlsx('dados_publicacao/06-UF_Serviços(Posição)-2017-Valores.xlsx',col_names = TRUE)
 
-  pais_vend <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/03-Países-2017-Vendedores.csv',
-                          fileEncoding = 'UTF16LE', skip = 3,col.names = c('pais','qtde_vend'),sep = ',')
+  uf_serv_vend <- read_xlsx('dados_publicacao/06-UF_Serviços(Posição)-2017-Vendedores.xlsx',col_names = TRUE)
 
+  uf_pais_vlr <- read_xlsx('dados_publicacao/07-UF_País-2017-Valores.xlsx',col_names = TRUE)
 
+  uf_pais_vend <- read_xlsx('dados_publicacao/07-UF_País-2017-Vendedores.xlsx',col_names = TRUE)
 
+  modo_vlr <- read_xlsx('dados_publicacao/08-Modo-2017-Valores.xlsx',col_names = TRUE)
+  
+  modo_vlr <- modo_vlr %>% separate(`Operação - Modo de Prestação`,c('CODIGO_MODO','DESC_MODO'),sep = '-')
 
-  pais_serv_vlr <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/04-Países_Serviços(Posição)-2017-Valores.csv',
-                              fileEncoding = 'UTF16LE', skip = 3,col.names = c('pais','cd_nbs','desc_nbs','','vlr_dil_rvs (USD)'),sep = ',', colClasses = c(NA,NA,NA,'NULL',NA))
+  modo_vend <- read_xlsx('dados_publicacao/08-Modo-2017-Vendedores.xlsx',col_names = TRUE)
 
-  pais_serv_vend <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/04-Países_Serviços(Posição)-2017-Vendedores.csv',
-                               fileEncoding = 'UTF16LE', skip = 3,col.names = c('pais','cd_nbs','desc_nbs','','qtde_vend'),colClasses = c(NA,NA,NA,'NULL',NA),sep = ',')
-
-
-
-
-
-
-  uf_vlr <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/05-UF-2017-Valores.csv',
-                       fileEncoding = 'UTF16LE', skip = 3,col.names = c('uf','','vlr_dil_rvs(USD)'), colClasses = c(NA,'NULL',NA),sep = ',')
-
-  uf_vend <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/05-UF-2017-Vendedores.csv',
-                        fileEncoding = 'UTF16LE', skip = 3,col.names = c('uf','','qtde_vend'),colClasses = c(NA,'NULL',NA),sep = ',')
-
-
-
-
-
-  uf_serv_vlr <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/06-UF_Serviços(Posição)-2017-Valores.csv',
-                            fileEncoding = 'UTF16LE', skip = 3,col.names = c('uf','cd_nbs','desc_nbs','','vlr_dil_rvs (USD)'), colClasses = c(NA,NA,NA,'NULL',NA),sep = ',')
-
-  uf_serv_vend <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/06-UF_Serviços(Posição)-2017-Vendedores.csv',
-                             fileEncoding = 'UTF16LE', skip = 3,col.names = c('uf','cd_nbs','desc_nbs','qtde_vend'),sep = ',')
-
-
-
-
-
-  uf_pais_vlr <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/07-UF_País-2017-Valores.csv',
-                            fileEncoding = 'UTF16LE', skip = 3,col.names = c('uf','pais','','vlr_dil_rvs (USD)'),colClasses = c(NA,NA,'NULL',NA),sep = ',')
-
-  uf_pais_vend <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/07-UF_País-2017-Vendedores.csv',
-                             fileEncoding = 'UTF16LE', skip = 3,col.names = c('uf','pais','','qtde_vend'),colClasses = c(NA,NA,'NULL',NA),sep = ',')
-
-
-
-  modo_vlr <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/08-Modo-2017-Valores.csv',
-                         fileEncoding = 'UTF16LE', skip = 3,col.names = c('modo_prest','','vlr_dil_rvs (RVS)'), colClasses = c(NA,'NULL',NA),sep = ',')
-
-  modo_vend <- read.table(file = '/home/erlan.mesquita/Documentos/RStudio/estatistica/publicacao/08-Modo-2017-Vendedores.csv',
-                          fileEncoding = 'UTF16LE', skip = 3,col.names = c('modo_prest','','qtde_vend'), colClasses = c(NA,'NULL',NA),sep = ',')
-
-# Manipulação dos arquivos
+# ManipulaÃ§Ã£o dos arquivos
 
 # Validacao do SIGILO
 
@@ -97,7 +59,7 @@
 # servicos - valores - vendedores
 
   serv_pos_vend <- serv_pos_vend %>%
-                              filter(qtde_vend >= 4)
+                              filter( serv_pos_vend$`Qtde Vendedores Distintos (PF + PJ) por Operação RVS` >= 4)
 
   aba_venda_servicos <- merge(serv_pos_vlr,serv_pos_vend,by = c('cd_nbs','desc_nbs'))
 
