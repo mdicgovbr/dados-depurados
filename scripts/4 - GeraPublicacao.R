@@ -232,8 +232,8 @@ rm(qtde_vend_rvs_oper_17,vlr_total)
   venda_uf_pais <- rbind(venda_uf_pais,sigilo)  
 
   rm(uf_pais_vend,uf_pais_vlr,sigilo)
-
-# modo - valores - vendedores
+  
+# MODO - VALORES - VENDEDORES
 
   venda_modos <- merge(modo_vlr,modo_vend,by = c('CODIGO MODO','DESCRICAO MODO'))
 
